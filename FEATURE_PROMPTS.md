@@ -247,7 +247,8 @@ implement โค้ดในโปรเจกต์ C:\Users\yiw20\Programming\
 - C:\Users\yiw20\Programming\trying\react-go-postgresql\.claude\rules\naming-conventions.md, frontend.md, backend.md
 - C:\Users\yiw20\Programming\trying\react-go-postgresql\.claude\docs\api-response.md, auth.md, error-logging.md, config.md, security.md
 
-เขียนโค้ดน้อยที่สุดให้ test เขียว ตาม convention เป๊ะ:
+เขียนโค้ดให้ test เขียว โดย **ทำตาม plan + test เป๊ะ ห้ามออกแบบเพิ่มเอง**:
+- ถ้า plan/test ไม่ครอบคลุมจุดไหน หรือกำกวม → **หยุด รายงานว่าตรงไหนขาด อย่าเดา/อย่า improvise**
 - Go: handler→service→repository→model, exported=PascalCase, json tag snake_case, ตอบผ่าน pkg/response
 - React: component PascalCase.jsx, เรียก API ผ่าน services/ เท่านั้น
 - ห้าม hardcode config (ใช้ .env), ห้าม log secret, hash password ด้วย bcrypt
@@ -263,9 +264,10 @@ ACCEPTANCE — รันเองแล้วต้องผ่านหมด:
 
 ---
 
-## งานย่อยสำหรับ qwen (mechanical — ก็อปไปวางได้เลย)
+## ตัวอย่าง prompt qwen ที่ spec รัดกุมแล้ว (ก็อปไปวางได้เลย)
 
-> qwen ไม่มี context จากแชต ต้องใส่ path เต็ม + บอกชัดว่าแก้อะไร + ให้มันรัน verify เอง
+> qwen ไม่มี context จากแชต ต้องใส่ path เต็ม + บอกชัดว่าแก้อะไร (spec แน่น) + ให้มันรัน verify เอง
+> อันนี้เป็นงานเล็ก แต่หลักการเดียวกับฟีเจอร์ใหญ่: Claude กำหนดจนไม่เหลือช่องเดา แล้ว qwen ถอดเป็นโค้ด
 
 ### qwen-task 1 — export ErrorDetail + reuse request_id (2 nit จากรอบตรวจ scaffold)
 
@@ -293,24 +295,31 @@ ACCEPTANCE — รันจาก C:\Users\yiw20\Programming\trying\react-go-pos
 
 ---
 
-## routing: อะไรส่ง qwen อะไรเก็บไว้ pipeline
+## หลักการ: Claude ออกแบบ (design) — qwen ถอดเป็นโค้ด (transcribe)
 
-| ประเภทงาน | ส่งให้ | เหตุผล |
-| --- | --- | --- |
-| rename / find-replace / format / boilerplate / สร้างไฟล์ตาม pattern เป๊ะ ๆ | **qwen** | จับจด บอกได้ชัดว่าแก้ตรงไหน แก้ผิดจับได้ง่าย |
-| scaffold โครงโปรเจกต์ตาม structure doc | **qwen** (แล้ว Claude ตรวจ) | mechanical แต่เป็นฐาน ต้อง verify |
-| ทั้งฟีเจอร์ (`/feature <slug>`) — auth, quotation, approval | **pipeline / Claude** | ต้องออกแบบ + business logic + security แก้ผิดแพงตอนตามเก็บ |
-| งานแตะความปลอดภัย (JWT, bcrypt, RBAC, query DB) | **Claude** | qwen skill ห้ามไว้ชัด — cheap-model พลาดเรื่อง security = เสี่ยง |
-| debug ที่ต้องใช้เหตุผล / อ่าน context หลายไฟล์ | **Claude** | เกิน window 128k + ไม่มี context แชต |
+> **code design ทั้งหมดเป็นหน้าที่ Claude** — architecture, business logic, โครงไฟล์, function signature, edge case, การตัดสินใจด้าน security ทุกอย่าง
+> **qwen ไม่ออกแบบอะไรเลย** มันแค่ "พิมพ์โค้ดตาม spec ที่ Claude วางไว้จนแน่นหนา"
+> กัน qwen หลอนด้วย **ความรัดกุมของ spec** ไม่ใช่ด้วยการหลบงานยากออกจาก qwen — งานยาก (auth/security) qwen เขียนได้ ถ้า spec แน่นพอและ Claude ตรวจ diff
 
-> กติกาง่าย ๆ: **บอกได้เป๊ะว่า "แก้บรรทัดไหนเป็นอะไร" → qwen** / **ต้อง "คิดเองว่าทำยังไง" → pipeline หรือ Claude**
-> ประหยัด token ที่ถูกจุดคือ mechanical ไปหมด แต่ให้ Claude ตรวจผล qwen เสมอ (cheap = ต้อง verify)
+**Claude รับผิดชอบ (ส่วนที่ต้องคิด — ยอมจ่ายโทเคนตรงนี้):**
+- plan ที่ละเอียดจนไม่กำกวม (planner) — ระบุ model/field/endpoint/flow/สิทธิ์/error code ครบ
+- failing test (test-case-writer) = spec ที่รันได้ ครอบ happy + edge + error + security case
+- ตัดสินใจ design ทุกจุดที่ qwen อาจเดาผิด (เช่น bcrypt cost, โครงสร้าง JWT claim, format response)
+- **อ่าน diff โค้ดที่ qwen ถอดออกมา ก่อน commit** (โดยเฉพาะ security — test เขียวไม่การันตี)
+
+**qwen รับผิดชอบ (ส่วนพิมพ์ล้วน — ก้อนโทเคนใหญ่สุด ประหยัดตรงนี้):**
+- เขียนโค้ด implementation ตาม plan + test **เป๊ะ ไม่ออกแบบเพิ่ม**
+- ถ้า spec ไม่ครอบคลุมจุดไหน → **หยุด รายงาน ไม่เดา** (ห้าม improvise)
+
+> test ที่ Claude เขียนไว้ = ตัวจับว่า qwen ถอดถูกไหม โดยไม่ต้องเผาโทเคน Claude คิดซ้ำ
+> ยิ่ง spec รัดกุม โทเคน design ยิ่งเยอะ — แต่จงใจจ่ายตรงนั้น เพราะประหยัดก้อนใหญ่ตอน "พิมพ์โค้ด"
 
 ---
 
 ## หมายเหตุประหยัด token
 
-- ขั้น 0 (scaffold) และงาน mechanical (rename, boilerplate, format) → **qwen-agent**
+- **โมเดลหลัก:** Claude ออกแบบ spec ให้รัดกุม (plan + test) → qwen พิมพ์โค้ดตาม → Claude ตรวจ diff ก่อน commit
+- โทเคนที่ประหยัดคือก้อน "พิมพ์โค้ด" (ใหญ่สุด) — ไม่ใช่ก้อน "คิด/ออกแบบ" ที่จงใจให้ Claude ทำเต็มที่
 - ทุก slug: ปล่อยให้ pipeline วน dev↔qa เอง แต่ถ้าชน cap 3 รอบ ให้หยุดดูก่อน อย่าฝืนวน
 - ทำทีละ slug + commit ก่อนไปตัวถัดไป จะ debug ง่ายและไม่เผา context รวม
 - git push ทำเองบน terminal เสมอ (sandbox เขียน .git/ ไม่ได้)
