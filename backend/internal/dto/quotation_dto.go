@@ -24,10 +24,17 @@ type CreateQuotationRequest struct {
 	CustomerSigneePosition *string              `json:"customer_signee_position"`
 	CustomerSigneeDate     *string              `json:"customer_signee_date"`
 	Items                  []QuotationItemInput `json:"items" binding:"required,min=1,dive"`
+	PaymentTerms           []PaymentTermInput   `json:"payment_terms" binding:"omitempty,dive"`
 }
 
 // UpdateQuotationRequest has the same shape as CreateQuotationRequest (full-replace PUT).
 type UpdateQuotationRequest CreateQuotationRequest
+
+// PaymentTermInput is the input for a single payment term.
+type PaymentTermInput struct {
+	Description string  `json:"description" binding:"required"`
+	Amount      float64 `json:"amount" binding:"gt=0"`
+}
 
 // QuotationItemResponse is the output for a single quotation line item.
 type QuotationItemResponse struct {
@@ -36,6 +43,15 @@ type QuotationItemResponse struct {
 	UnitPrice   float64 `json:"unit_price"`
 	Qty         int     `json:"qty"`
 	LineTotal   float64 `json:"line_total"`
+	SortOrder   int     `json:"sort_order"`
+}
+
+// PaymentTermResponse is the output for a single payment term.
+type PaymentTermResponse struct {
+	ID          uint    `json:"id"`
+	TermNo      int     `json:"term_no"`
+	Description string  `json:"description"`
+	Amount      float64 `json:"amount"`
 	SortOrder   int     `json:"sort_order"`
 }
 
@@ -56,6 +72,7 @@ type QuotationResponse struct {
 	VatAmount              float64                 `json:"vat_amount"`
 	Total                  float64                 `json:"total"`
 	Items                  []QuotationItemResponse `json:"items"`
+	PaymentTerms           []PaymentTermResponse   `json:"payment_terms"`
 	CustomerSigneeName     *string                 `json:"customer_signee_name"`
 	CustomerSigneePosition *string                 `json:"customer_signee_position"`
 	CustomerSigneeDate     *string                 `json:"customer_signee_date"`

@@ -63,6 +63,9 @@ func (r *gormQuotationRepository) FindByID(ctx context.Context, id uint) (*model
 		Preload("Items", func(db *gorm.DB) *gorm.DB {
 			return db.Order("sort_order asc")
 		}).
+		Preload("PaymentTerms", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order asc")
+		}).
 		First(&q, id).Error
 	if err != nil {
 		return nil, err
@@ -82,17 +85,31 @@ func (r *gormQuotationRepository) Update(ctx context.Context, q *model.Quotation
 		for i := range q.Items {
 			q.Items[i].QuotationID = q.ID
 		}
-		// 3. Update header fields (all columns except Items and CreatedAt).
+		// 2b. Delete all existing payment terms for this quotation.
+		if err := tx.Where("quotation_id = ?", q.ID).Delete(&model.PaymentTerm{}).Error; err != nil {
+			return err
+		}
+		// 2c. Set QuotationID on all new payment terms.
+		for i := range q.PaymentTerms {
+			q.PaymentTerms[i].QuotationID = q.ID
+		}
+		// 3. Update header fields (all columns except Items, PaymentTerms and CreatedAt).
 		if err := tx.Model(&model.Quotation{}).
 			Where("id = ?", q.ID).
 			Select("*").
-			Omit("Items", "CreatedAt").
+			Omit("Items", "PaymentTerms", "CreatedAt").
 			Updates(q).Error; err != nil {
 			return err
 		}
 		// 4. Insert all new items.
 		if len(q.Items) > 0 {
 			if err := tx.Create(&q.Items).Error; err != nil {
+				return err
+			}
+		}
+		// 5. Insert all new payment terms.
+		if len(q.PaymentTerms) > 0 {
+			if err := tx.Create(&q.PaymentTerms).Error; err != nil {
 				return err
 			}
 		}
@@ -120,6 +137,8 @@ func (r *gormQuotationRepository) List(ctx context.Context, query dto.ListQuotat
 	}
 
 	db := r.db.WithContext(ctx).Preload("Items", func(db *gorm.DB) *gorm.DB {
+		return db.Order("sort_order asc")
+	}).Preload("PaymentTerms", func(db *gorm.DB) *gorm.DB {
 		return db.Order("sort_order asc")
 	})
 

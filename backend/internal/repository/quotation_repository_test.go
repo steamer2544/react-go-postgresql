@@ -123,7 +123,7 @@ func TestMain(m *testing.M) {
 	}
 
 	// AutoMigrate models required by quotation tests (User needed for FK created_by → users(id))
-	if err := testDB.AutoMigrate(&model.Quotation{}, &model.QuotationItem{}, &model.User{}); err != nil {
+	if err := testDB.AutoMigrate(&model.Quotation{}, &model.QuotationItem{}, &model.PaymentTerm{}, &model.User{}); err != nil {
 		fmt.Fprintln(os.Stderr, "failed to auto-migrate:", err)
 		os.Exit(1)
 	}

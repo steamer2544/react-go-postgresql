@@ -10,7 +10,7 @@
  * @param {number} amount - baht value (float)
  * @returns {number} integer cents
  */
-function roundHalfUpCents(amount) {
+export function roundHalfUpCents(amount) {
   return Math.round(amount * 100);
 }
 
@@ -71,4 +71,20 @@ export function calcTotals(items, discountAmount) {
     total: totalCents / 100,
     error: null,
   };
+}
+
+/**
+ * Check whether the sum of payment-term amounts exactly matches the quotation total.
+ * Compares using integer cents (via roundHalfUpCents) to avoid floating-point
+ * tie-case errors. Empty/undefined/null terms is always valid (optional feature).
+ *
+ * @param {{amount: number}[] | undefined | null} terms
+ * @param {number} total - baht value
+ * @returns {boolean}
+ */
+export function paymentTermsSumMatchesTotal(terms, total) {
+  if (!terms || terms.length === 0) return true;
+  const sumCents = terms.reduce((sum, t) => sum + roundHalfUpCents(Number(t.amount) || 0), 0);
+  const totalCents = roundHalfUpCents(Number(total) || 0);
+  return sumCents === totalCents;
 }

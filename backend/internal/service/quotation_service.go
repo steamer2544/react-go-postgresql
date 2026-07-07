@@ -76,6 +76,15 @@ func (s *QuotationService) CreateQuotation(ctx context.Context, userID uint, req
 		return nil, err
 	}
 
+	// 4b. Validate payment-terms sum against totalCents (optional feature).
+	paymentTermAmounts := make([]float64, len(req.PaymentTerms))
+	for i, t := range req.PaymentTerms {
+		paymentTermAmounts[i] = t.Amount
+	}
+	if err := validatePaymentTermsCents(paymentTermAmounts, totalCents); err != nil {
+		return nil, err
+	}
+
 	// 5. Snapshot creator's signee info.
 	user, err := s.userRepo.FindByID(ctx, userID)
 	if err != nil {
@@ -118,6 +127,7 @@ func (s *QuotationService) CreateQuotation(ctx context.Context, userID uint, req
 			CreatedBy:              userID,
 			Status:                 "draft",
 			Items:                  buildItems(req.Items),
+			PaymentTerms:           buildPaymentTerms(req.PaymentTerms),
 		}
 		err = s.repo.Create(ctx, candidate)
 		if err == nil {
@@ -179,7 +189,16 @@ func (s *QuotationService) UpdateQuotation(ctx context.Context, userID uint, rol
 		return nil, err
 	}
 
-	// 5b. Parse optional customer signee date (validates format).
+	// 5b. Validate payment-terms sum against totalCents (optional feature).
+	paymentTermAmounts := make([]float64, len(req.PaymentTerms))
+	for i, t := range req.PaymentTerms {
+		paymentTermAmounts[i] = t.Amount
+	}
+	if err := validatePaymentTermsCents(paymentTermAmounts, totalCents); err != nil {
+		return nil, err
+	}
+
+	// 5c. Parse optional customer signee date (validates format).
 	customerSigneeDate, err := parseDatePtr(req.CustomerSigneeDate)
 	if err != nil {
 		return nil, err
@@ -208,6 +227,7 @@ func (s *QuotationService) UpdateQuotation(ctx context.Context, userID uint, rol
 		CreatedBy:              existing.CreatedBy,
 		Status:                 existing.Status,
 		Items:                  buildItems(req.Items),
+		PaymentTerms:           buildPaymentTerms(req.PaymentTerms),
 	}
 
 	if err := s.repo.Update(ctx, q); err != nil {
@@ -262,6 +282,22 @@ func (s *QuotationService) ListQuotations(ctx context.Context, query dto.ListQuo
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
+
+// buildPaymentTerms converts DTO payment-term inputs into model PaymentTerms.
+// term_no and sort_order are derived from array index (1-based) — never taken
+// from client input (server owns the ordering semantics).
+func buildPaymentTerms(terms []dto.PaymentTermInput) []model.PaymentTerm {
+	result := make([]model.PaymentTerm, 0, len(terms))
+	for i, t := range terms {
+		result = append(result, model.PaymentTerm{
+			TermNo:      i + 1,
+			Description: t.Description,
+			Amount:      t.Amount,
+			SortOrder:   i + 1,
+		})
+	}
+	return result
+}
 
 // buildItems converts DTO item inputs into model QuotationItems with line totals.
 func buildItems(items []dto.QuotationItemInput) []model.QuotationItem {
@@ -343,6 +379,17 @@ func mapQuotationResponse(q *model.Quotation) *dto.QuotationResponse {
 			Qty:         item.Qty,
 			LineTotal:   item.LineTotal,
 			SortOrder:   item.SortOrder,
+		})
+	}
+
+	resp.PaymentTerms = make([]dto.PaymentTermResponse, 0, len(q.PaymentTerms))
+	for _, t := range q.PaymentTerms {
+		resp.PaymentTerms = append(resp.PaymentTerms, dto.PaymentTermResponse{
+			ID:          t.ID,
+			TermNo:      t.TermNo,
+			Description: t.Description,
+			Amount:      t.Amount,
+			SortOrder:   t.SortOrder,
 		})
 	}
 

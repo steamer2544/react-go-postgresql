@@ -26,8 +26,19 @@ type Quotation struct {
 	CompanySigneePosition  string
 	CreatedBy              uint            `gorm:"column:created_by;not null"`
 	Items                  []QuotationItem `gorm:"foreignKey:QuotationID;constraint:OnDelete:CASCADE"`
+	PaymentTerms           []PaymentTerm   `gorm:"foreignKey:QuotationID;constraint:OnDelete:CASCADE"`
 	CreatedAt              time.Time
 	UpdatedAt              time.Time
+}
+
+// PaymentTerm represents a payment installment for a quotation.
+type PaymentTerm struct {
+	ID          uint `gorm:"primaryKey"`
+	QuotationID uint `gorm:"not null"`
+	TermNo      int
+	Description string
+	Amount      float64
+	SortOrder   int
 }
 
 // QuotationItem represents a line item within a quotation.

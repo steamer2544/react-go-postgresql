@@ -4,7 +4,7 @@ import DatePicker from 'react-datepicker';
 import dayjs from 'dayjs';
 import 'react-datepicker/dist/react-datepicker.css';
 import { useParams, useNavigate } from 'react-router-dom';
-import { calcTotals } from '@/features/quotation/utils/calcQuotation';
+import { calcTotals, paymentTermsSumMatchesTotal } from '@/features/quotation/utils/calcQuotation';
 import { useQuotation } from '@/features/quotation/hooks/useQuotation';
 import { useCreateQuotation } from '@/features/quotation/hooks/useCreateQuotation';
 import { useUpdateQuotation } from '@/features/quotation/hooks/useUpdateQuotation';
@@ -22,15 +22,21 @@ function QuotationFormPage() {
     defaultValues: {
       items: [{ service_type: '', description: '', unit_price: 0, qty: 0, sort_order: 1 }],
       discount_amount: 0,
+      payment_terms: [],
     },
   });
 
   // Track form fields via watch
   const watchedItems = watch('items');
   const watchedDiscount = watch('discount_amount');
+  const watchedPaymentTerms = watch('payment_terms');
 
   // Calculate totals from current form state
   // Transform snake_case form fields to calcTotals expected shape {unitPrice, qty}
+  // Depend on both the array reference *and* its serialized content: react-hook-form's
+  // watch() can return the same array reference across renders even after its contents
+  // mutate, so a content-based key is required for the memo to invalidate reliably.
+  const watchedItemsKey = JSON.stringify(watchedItems);
   const totals = useMemo(
     () =>
       calcTotals(
@@ -40,7 +46,7 @@ function QuotationFormPage() {
         })),
         Number(watchedDiscount) || 0,
       ),
-    [watchedItems, watchedDiscount],
+    [watchedItems, watchedItemsKey, watchedDiscount],
   );
 
   // Load existing data in edit mode
@@ -63,6 +69,11 @@ function QuotationFormPage() {
             qty: item.qty || 0,
             sort_order: item.sort_order || 0,
           })) || [],
+        payment_terms:
+          quotation.payment_terms?.map((term) => ({
+            description: term.description || '',
+            amount: term.amount || 0,
+          })) || [],
         customer_signee_name: quotation.customer_signee_name || '',
         customer_signee_position: quotation.customer_signee_position || '',
         customer_signee_date: quotation.customer_signee_date || '',
@@ -75,12 +86,35 @@ function QuotationFormPage() {
   // Check if form is locked (non-draft in edit mode)
   const isLocked = isEditMode && quotation && quotation.status !== 'draft';
 
+  // Same content-based-key rationale as `totals` above: watch('payment_terms') can
+  // return a reference-stable (but mutated) array, so include a serialized key.
+  const watchedPaymentTermsKey = JSON.stringify(watchedPaymentTerms);
+  const paymentTermsMismatch = useMemo(() => {
+    const hasTerms = (watchedPaymentTerms || []).length > 0;
+    const hasTotal = totals.total != null;
+    const matches = hasTotal && paymentTermsSumMatchesTotal(watchedPaymentTerms, totals.total);
+    return hasTerms && !matches;
+  }, [watchedPaymentTerms, watchedPaymentTermsKey, totals.total]);
+
   const addItem = () => {
     const items = watch('items', []);
     setValue('items', [
       ...items,
       { service_type: '', description: '', unit_price: 0, qty: 0, sort_order: items.length + 1 },
     ]);
+  };
+
+  const addPaymentTerm = () => {
+    const terms = watch('payment_terms', []);
+    setValue('payment_terms', [...terms, { description: '', amount: 0 }]);
+  };
+
+  const removePaymentTerm = (index) => {
+    const terms = watch('payment_terms', []);
+    setValue(
+      'payment_terms',
+      terms.filter((_, i) => i !== index),
+    );
   };
 
   const onSubmit = (data) => {
@@ -103,6 +137,10 @@ function QuotationFormPage() {
       customer_signee_name: data.customer_signee_name,
       customer_signee_position: data.customer_signee_position,
       customer_signee_date: data.customer_signee_date,
+      payment_terms: (data.payment_terms || []).map((t) => ({
+        description: t.description,
+        amount: Number(t.amount) || 0,
+      })),
     };
 
     if (isEditMode) {
@@ -265,12 +303,53 @@ function QuotationFormPage() {
             : '0.00'}
         </div>
 
+        {/* Payment Terms */}
+        <h2>Payment Terms</h2>
+        {(watchedPaymentTerms || []).map((term, index) => (
+          <div key={index} data-testid="payment-term-row">
+            <label htmlFor={`payment-term-description-${index}`}>Term Description</label>
+            <input
+              id={`payment-term-description-${index}`}
+              {...register(`payment_terms.${index}.description`)}
+              disabled={isLocked}
+            />
+
+            <label htmlFor={`payment-term-amount-${index}`}>Term Amount</label>
+            <input
+              id={`payment-term-amount-${index}`}
+              type="number"
+              step="0.01"
+              {...register(`payment_terms.${index}.amount`, { valueAsNumber: true })}
+              disabled={isLocked}
+            />
+
+            <button type="button" onClick={() => removePaymentTerm(index)} disabled={isLocked}>
+              Remove Term
+            </button>
+          </div>
+        ))}
+
+        <button type="button" onClick={addPaymentTerm} disabled={isLocked}>
+          Add Term
+        </button>
+
+        <div data-testid="payment-terms-sum">
+          {(watchedPaymentTerms || [])
+            .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
+            .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </div>
+
+        {paymentTermsMismatch && (
+          <div data-testid="payment-terms-warning">ผลรวมงวดไม่เท่ากับยอดรวม</div>
+        )}
+
         {/* Submit */}
         {!isLocked && (
           <button
             type="submit"
             disabled={
               totals.error === 'DISCOUNT_EXCEEDS_SUBTOTAL' ||
+              paymentTermsMismatch ||
               createMutation.isPending ||
               updateMutation.isPending
             }

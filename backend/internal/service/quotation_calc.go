@@ -45,3 +45,20 @@ func calcTotals(lineItemCents []int64, discountAmount float64) (subtotalCents, b
 	totalCents = baseCents + vatCents
 	return subtotalCents, baseCents, vatCents, totalCents, nil
 }
+
+// validatePaymentTermsCents checks that payment-term amounts sum exactly to
+// totalCents (in satang). Empty/nil termAmounts is always valid (feature is
+// optional — a quotation may have zero payment terms).
+func validatePaymentTermsCents(termAmounts []float64, totalCents int64) error {
+	if len(termAmounts) == 0 {
+		return nil
+	}
+	var sumCents int64
+	for _, a := range termAmounts {
+		sumCents += roundHalfUpCents(a)
+	}
+	if sumCents != totalCents {
+		return ErrValidation
+	}
+	return nil
+}
