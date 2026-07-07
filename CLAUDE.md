@@ -9,12 +9,12 @@
 
 ระบบ Web Application แบบ full-stack แยก frontend / backend ชัดเจน
 
-| ชั้น | เทคโนโลยี |
-| --- | --- |
+| ชั้น     | เทคโนโลยี                               |
+| -------- | --------------------------------------- |
 | Frontend | React (Vite) + Bootstrap 5 + Custom CSS |
-| Backend | Go (Golang) + Gin framework |
-| ORM | GORM |
-| Database | PostgreSQL |
+| Backend  | Go (Golang) + Gin framework             |
+| ORM      | GORM                                    |
+| Database | PostgreSQL                              |
 
 รายละเอียด tech stack เต็ม → `.claude/docs/tech-stack.md`
 
@@ -57,6 +57,7 @@ project/
 - test ตามกลยุทธ์ (unit+mock / integration DB / frontend) → `.claude/docs/testing.md`
 
 กฎแบบละเอียด (`.claude/rules/`):
+
 - `naming-conventions.md` — คอนเวนชันการตั้งชื่อทั้งหมด (โหลด**ทุก session** เพราะต้องใช้ตอนสร้างไฟล์ใหม่)
 - `frontend.md` — กฎเฉพาะฝั่ง React (**path-scoped**: โหลดเฉพาะตอนแตะ `frontend/`)
 - `backend.md` — กฎเฉพาะฝั่ง Go/Gin (**path-scoped**: โหลดเฉพาะตอนแตะ `backend/`)
@@ -94,14 +95,21 @@ docs/plans/   = RED             + refactor   docs/reports/
 > ถ้า qa-tester รายงาน FAIL → main agent ส่งกลับให้ `dev` แก้ แล้ววน qa-tester ใหม่จนกว่าจะ PASS (สูงสุด 3 รอบ)
 > รันทั้งสายอัตโนมัติด้วย **`/feature <slug หรือ คำอธิบาย>`** (resume ข้ามเฟสที่ทำเสร็จแล้วให้เอง) — ดู `.claude/commands/`
 
-| Agent | หน้าที่ | เขียนโค้ด? | model |
-| --- | --- | --- | --- |
-| `planner` | แตกงาน + acceptance criteria | ไม่ (เฉพาะ plan) | opus |
-| `test-case-writer` | เขียน test case + test ที่ fail (RED) | เฉพาะ test | sonnet |
-| `dev` | implement ให้ test ผ่าน (GREEN) + refactor | ใช่ | sonnet |
-| `qa-tester` | รัน test + verify + เขียนรายงาน `docs/reports/<slug>-qa.md` | เฉพาะรายงาน | sonnet |
+| Agent              | หน้าที่                                                                                  | เขียนโค้ด?                 | model   |
+| ------------------ | ---------------------------------------------------------------------------------------- | -------------------------- | ------- |
+| `planner`          | แตกงาน + acceptance criteria                                                             | ไม่ (เฉพาะ plan)           | sonnet¹ |
+| `test-case-writer` | ออกแบบ test case + assertion (RED) — **พิมพ์ไฟล์ test delegate ให้ qwen** แล้ว review    | เฉพาะ test (ออกแบบ+review) | sonnet  |
+| `dev`              | implement ให้ test ผ่าน (GREEN) + refactor — **พิมพ์โค้ด delegate ให้ qwen** แล้ว verify | ใช่ (delegate→verify)      | sonnet  |
+| `qa-tester`        | รัน test + verify + เขียนรายงาน `docs/reports/<slug>-qa.md`                              | เฉพาะรายงาน                | sonnet  |
+
+> **นโยบายประหยัดโทเคน:** งาน "พิมพ์โค้ด" (test + implementation) delegate ให้ qwen (`claude-9arm`) ซึ่งถูกกว่ามาก
+> ส่วน Claude ถือเฉพาะงาน "คิด" ที่ผิดแล้วพัง: ออกแบบ spec/test/assertion, review diff, ตัดสิน PASS/FAIL, แก้บั๊กลึก
+> (อ่าน/ตรวจ ถูกกว่าเขียนเอง) — qwen รันแบบ **synchronous เท่านั้น** ห้าม background/watcher (กัน agent "จอด" เผาโทเคน)
+>
+> ¹ `planner` = sonnet เป็นค่าตั้งต้น; ใช้ **opus** เฉพาะฟีเจอร์ที่ต้องตัดสินใจ architecture ใหม่จริง ๆ (สั่งเป็นราย ๆ)
 
 เรียกใช้ (เลือกทางใดทางหนึ่ง):
+
 - **แนะนำ** — `/feature <slug หรือ คำอธิบาย>` : orchestrate ทั้งสายให้อัตโนมัติ (planner→test→dev→qa วนจน PASS); `/plan <โจทย์>` วางแผนอย่างเดียว; `/qa <slug>` verify อย่างเดียว
 - หรือสั่งทีละตัว `"ใช้ planner วางแผนฟีเจอร์ X"` แล้วไล่ต่อ หรือปล่อยให้ Claude auto-delegate ตาม description
 
@@ -109,16 +117,16 @@ docs/plans/   = RED             + refactor   docs/reports/
 
 ## 6. เอกสารอ้างอิงเชิงลึก (`.claude/docs/`)
 
-| ไฟล์ | เนื้อหา |
-| --- | --- |
-| `tech-stack.md` | รายละเอียด stack + เวอร์ชันที่ใช้ |
-| `frontend-structure.md` | โครงสร้างโฟลเดอร์ frontend เต็ม |
-| `backend-structure.md` | โครงสร้างโฟลเดอร์ backend เต็ม |
-| `standard-libraries.md` | รายชื่อ library มาตรฐาน + นโยบาย migration |
-| `api-response.md` | รูปแบบ JSON response มาตรฐาน (สัญญา FE/BE) |
-| `list-query.md` | สัญญา query param ของ endpoint แบบ list (page/sort/filter) |
-| `auth.md` | มาตรฐาน auth/authorization (JWT, bcrypt, middleware, RBAC) |
-| `error-logging.md` | การจัดการ error ข้ามชั้น + structured logging + request id |
-| `config.md` | รายการ env var ทั้งหมด (schema) + กติกา config |
-| `testing.md` | กลยุทธ์ test: unit/mock, integration DB, frontend, coverage |
-| `security.md` | checklist ความปลอดภัยขั้นต่ำ |
+| ไฟล์                    | เนื้อหา                                                     |
+| ----------------------- | ----------------------------------------------------------- |
+| `tech-stack.md`         | รายละเอียด stack + เวอร์ชันที่ใช้                           |
+| `frontend-structure.md` | โครงสร้างโฟลเดอร์ frontend เต็ม                             |
+| `backend-structure.md`  | โครงสร้างโฟลเดอร์ backend เต็ม                              |
+| `standard-libraries.md` | รายชื่อ library มาตรฐาน + นโยบาย migration                  |
+| `api-response.md`       | รูปแบบ JSON response มาตรฐาน (สัญญา FE/BE)                  |
+| `list-query.md`         | สัญญา query param ของ endpoint แบบ list (page/sort/filter)  |
+| `auth.md`               | มาตรฐาน auth/authorization (JWT, bcrypt, middleware, RBAC)  |
+| `error-logging.md`      | การจัดการ error ข้ามชั้น + structured logging + request id  |
+| `config.md`             | รายการ env var ทั้งหมด (schema) + กติกา config              |
+| `testing.md`            | กลยุทธ์ test: unit/mock, integration DB, frontend, coverage |
+| `security.md`           | checklist ความปลอดภัยขั้นต่ำ                                |
