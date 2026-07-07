@@ -34,12 +34,11 @@ frontend/
 │
 ├── .env                        # ตัวแปร environment (VITE_API_URL ฯลฯ)
 ├── .env.example                # ตัวอย่าง env สำหรับ commit
-├── .eslintrc.cjs               # config ESLint
+├── eslint.config.js            # config ESLint (flat config)
 ├── .prettierrc                 # config Prettier
 ├── index.html                  # HTML template ของ Vite
 ├── package.json
-├── vite.config.js
-└── vitest.config.js            # (หรือรวมใน vite.config.js) — config test
+└── vite.config.js              # config Vite + alias @ + config test (Vitest) รวมในไฟล์นี้
 ```
 
 ## หลักการวางไฟล์
