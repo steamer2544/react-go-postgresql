@@ -2,9 +2,11 @@
 package response
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"imaxx-backend/internal/service"
 )
 
 // successResponse is the JSON shape for a successful request.
@@ -77,4 +79,59 @@ func List(c *gin.Context, data any, page int, pageSize int, total int64) {
 			Total:    total,
 		},
 	})
+}
+
+// Fail maps a domain error to the appropriate error.code and HTTP status.
+func Fail(c *gin.Context, err error) {
+	code, message := mapError(err)
+	c.JSON(httpStatusCode(code), errorResponse{
+		Error: struct {
+			Code    string        `json:"code"`
+			Message string        `json:"message"`
+			Details []errorDetail `json:"details,omitempty"`
+		}{
+			Code:    code,
+			Message: message,
+		},
+	})
+}
+
+func mapError(err error) (code string, message string) {
+	switch {
+	case errors.Is(err, service.ErrNotFound):
+		return "NOT_FOUND", "not found"
+	case errors.Is(err, service.ErrConflict):
+		return "CONFLICT", "conflict"
+	case errors.Is(err, service.ErrValidation):
+		return "VALIDATION_ERROR", "validation error"
+	case errors.Is(err, service.ErrUnauthorized):
+		return "UNAUTHORIZED", "unauthorized"
+	case errors.Is(err, service.ErrInvalidCredentials):
+		return "UNAUTHORIZED", "unauthorized"
+	case errors.Is(err, service.ErrForbidden):
+		return "FORBIDDEN", "forbidden"
+	case errors.Is(err, service.ErrUnsupportedFileType):
+		return "VALIDATION_ERROR", "validation error"
+	case errors.Is(err, service.ErrFileTooLarge):
+		return "VALIDATION_ERROR", "validation error"
+	default:
+		return "INTERNAL_ERROR", "internal server error"
+	}
+}
+
+func httpStatusCode(code string) int {
+	switch code {
+	case "NOT_FOUND":
+		return http.StatusNotFound
+	case "CONFLICT":
+		return http.StatusConflict
+	case "VALIDATION_ERROR":
+		return http.StatusBadRequest
+	case "UNAUTHORIZED":
+		return http.StatusUnauthorized
+	case "FORBIDDEN":
+		return http.StatusForbidden
+	default:
+		return http.StatusInternalServerError
+	}
 }

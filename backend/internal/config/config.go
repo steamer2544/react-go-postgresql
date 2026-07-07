@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,19 +13,22 @@ import (
 
 // Config holds all application configuration loaded from environment variables.
 type Config struct {
-	AppEnv             string
-	AppPort            string
-	DBHost             string
-	DBPort             string
-	DBUser             string
-	DBPassword         string
-	DBName             string
-	DBSSLMode          string
-	JWTSecret          string
-	JWTAccessTTL       time.Duration
-	JWTRefreshTTL      time.Duration
-	CORSAllowedOrigins []string
-	LogLevel           string
+	AppEnv                string
+	AppPort               string
+	DBHost                string
+	DBPort                string
+	DBUser                string
+	DBPassword            string
+	DBName                string
+	DBSSLMode             string
+	JWTSecret             string
+	JWTAccessTTL          time.Duration
+	JWTRefreshTTL         time.Duration
+	CORSAllowedOrigins    []string
+	LogLevel              string
+	SignatureUploadDir    string
+	SignatureMaxBytes     int64
+	SignatureAllowedTypes []string
 }
 
 // Load reads configuration from .env file (if present) and environment variables.
@@ -58,6 +62,31 @@ func Load() *Config {
 	c.CORSAllowedOrigins = strings.Split(corsRaw, ",")
 	for i, origin := range c.CORSAllowedOrigins {
 		c.CORSAllowedOrigins[i] = strings.TrimSpace(origin)
+	}
+
+	// Signature upload settings (fail-fast on missing).
+	loadString("SIGNATURE_UPLOAD_DIR", &c.SignatureUploadDir)
+
+	maxBytesRaw := os.Getenv("SIGNATURE_MAX_BYTES")
+	if maxBytesRaw == "" {
+		fmt.Fprintf(os.Stderr, "fatal: required environment variable SIGNATURE_MAX_BYTES is not set\n")
+		os.Exit(1)
+	}
+	var err error
+	c.SignatureMaxBytes, err = strconv.ParseInt(maxBytesRaw, 10, 64)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "fatal: SIGNATURE_MAX_BYTES=%q is not a valid int64: %v\n", maxBytesRaw, err)
+		os.Exit(1)
+	}
+
+	allowedTypesRaw := os.Getenv("SIGNATURE_ALLOWED_TYPES")
+	if allowedTypesRaw == "" {
+		fmt.Fprintf(os.Stderr, "fatal: required environment variable SIGNATURE_ALLOWED_TYPES is not set\n")
+		os.Exit(1)
+	}
+	c.SignatureAllowedTypes = strings.Split(allowedTypesRaw, ",")
+	for i, t := range c.SignatureAllowedTypes {
+		c.SignatureAllowedTypes[i] = strings.TrimSpace(t)
 	}
 
 	return c
