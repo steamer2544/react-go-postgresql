@@ -33,7 +33,7 @@ func main() {
 
 	// Auto-migrate in dev.
 	if cfg.AppEnv == "dev" {
-		if err := db.AutoMigrate(&model.User{}); err != nil {
+		if err := db.AutoMigrate(&model.User{}, &model.Quotation{}, &model.QuotationItem{}); err != nil {
 			appLogger.Error("failed to auto-migrate", "error", err)
 			log.Fatal(err)
 		}

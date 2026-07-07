@@ -3,6 +3,7 @@ package router
 
 import (
 	"log/slog"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -45,6 +46,23 @@ func NewRouter(cfg *config.Config, logger *slog.Logger, db *gorm.DB) *gin.Engine
 		me.PUT("/profile", meHandler.UpdateProfile)
 		me.POST("/signature", meHandler.UploadSignature)
 		me.GET("/signature", meHandler.GetSignature)
+	}
+
+	// Quotation routes
+	quotationRepo := repository.NewQuotationRepository(db)
+	quotationSvc := service.NewQuotationService(quotationRepo, userRepo, time.Now)
+	quotationHandler := handler.NewQuotationHandler(quotationSvc)
+
+	quotations := engine.Group("/quotations", middleware.Auth(tokenSvc))
+	{
+		quotations.GET("", quotationHandler.List)
+		quotations.GET("/:id", quotationHandler.Get)
+	}
+	quotationsWrite := engine.Group("/quotations", middleware.Auth(tokenSvc), middleware.RequireRole("admin", "creator"))
+	{
+		quotationsWrite.POST("", quotationHandler.Create)
+		quotationsWrite.PUT("/:id", quotationHandler.Update)
+		quotationsWrite.DELETE("/:id", quotationHandler.Delete)
 	}
 
 	// RBAC example
