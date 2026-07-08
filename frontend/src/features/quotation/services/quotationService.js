@@ -20,3 +20,24 @@ export async function update(id, payload) {
 export async function remove(id) {
   return apiClient.delete(`${QUOTATIONS}/${id}`);
 }
+
+export async function submit(id) {
+  return apiClient.post(`${QUOTATIONS}/${id}/submit`);
+}
+
+export async function approve(id) {
+  return apiClient.post(`${QUOTATIONS}/${id}/approve`);
+}
+
+export async function reject(id) {
+  return apiClient.post(`${QUOTATIONS}/${id}/reject`);
+}
+
+export async function getApprovalSignatureUrl(id) {
+  const response = await apiClient.get(`${QUOTATIONS}/${id}/approval-signature`, {
+    responseType: 'arraybuffer',
+  });
+  const contentType = response.headers['content-type'] || 'image/png';
+  const blob = new Blob([response.data], { type: contentType });
+  return URL.createObjectURL(blob);
+}

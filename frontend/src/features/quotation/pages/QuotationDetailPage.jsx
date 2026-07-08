@@ -1,9 +1,22 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuotation } from '@/features/quotation/hooks/useQuotation';
+import { useMe } from '@/features/auth/hooks/useMe';
+import { useSubmitQuotation } from '@/features/quotation/hooks/useSubmitQuotation';
+import { useApproveQuotation } from '@/features/quotation/hooks/useApproveQuotation';
+import { useRejectQuotation } from '@/features/quotation/hooks/useRejectQuotation';
+import { useApprovalSignatureUrl } from '@/features/quotation/hooks/useApprovalSignatureUrl';
 
 function QuotationDetailPage() {
   const { id } = useParams();
   const { data: quotation, isLoading } = useQuotation(id);
+  const { data: me } = useMe();
+  const submitMutation = useSubmitQuotation();
+  const approveMutation = useApproveQuotation();
+  const rejectMutation = useRejectQuotation();
+  const { data: approvalSignatureUrl } = useApprovalSignatureUrl(
+    id,
+    quotation?.has_approved_signature,
+  );
 
   if (isLoading) return <p>Loading...</p>;
   if (!quotation) return <p>Quotation not found</p>;
@@ -125,6 +138,40 @@ function QuotationDetailPage() {
 
       {/* Edit link for draft */}
       {quotation.status === 'draft' && <Link to={`/quotations/${id}/edit`}>Edit</Link>}
+
+      {quotation.status === 'draft' &&
+        me &&
+        (me.role === 'admin' || me.id === quotation.created_by) && (
+          <div>
+            <button onClick={() => submitMutation.mutate(id)}>Submit</button>
+            {submitMutation.error && <p role="alert">{submitMutation.error.message}</p>}
+          </div>
+        )}
+
+      {quotation.status === 'pending_approval' && me?.role === 'approver' && (
+        <div>
+          <button onClick={() => approveMutation.mutate(id)}>Approve</button>
+          {approveMutation.error && <p role="alert">{approveMutation.error.message}</p>}
+          <button onClick={() => rejectMutation.mutate(id)}>Reject</button>
+          {rejectMutation.error && <p role="alert">{rejectMutation.error.message}</p>}
+        </div>
+      )}
+
+      {quotation.status === 'approved' && (
+        <div>
+          <h2>Approved</h2>
+          <p>{quotation.approved_signee_name}</p>
+          <p>{quotation.approved_signee_position}</p>
+          <p>{quotation.approved_at}</p>
+          {quotation.has_approved_signature && approvalSignatureUrl && (
+            <img
+              data-testid="approved-signature"
+              src={approvalSignatureUrl}
+              alt="approval signature"
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }

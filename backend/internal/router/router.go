@@ -57,12 +57,20 @@ func NewRouter(cfg *config.Config, logger *slog.Logger, db *gorm.DB) *gin.Engine
 	{
 		quotations.GET("", quotationHandler.List)
 		quotations.GET("/:id", quotationHandler.Get)
+		quotations.GET("/:id/approval-signature", quotationHandler.GetApprovalSignature)
 	}
 	quotationsWrite := engine.Group("/quotations", middleware.Auth(tokenSvc), middleware.RequireRole("admin", "creator"))
 	{
 		quotationsWrite.POST("", quotationHandler.Create)
 		quotationsWrite.PUT("/:id", quotationHandler.Update)
 		quotationsWrite.DELETE("/:id", quotationHandler.Delete)
+		quotationsWrite.POST("/:id/submit", quotationHandler.Submit)
+	}
+
+	quotationsApproval := engine.Group("/quotations", middleware.Auth(tokenSvc), middleware.RequireRole("approver"))
+	{
+		quotationsApproval.POST("/:id/approve", quotationHandler.Approve)
+		quotationsApproval.POST("/:id/reject", quotationHandler.Reject)
 	}
 
 	// RBAC example

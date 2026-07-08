@@ -18,6 +18,10 @@ import (
 // unique index on reference_no (concurrent creation in the same month).
 var ErrDuplicateReferenceNo = errors.New("duplicate reference_no")
 
+// ErrStatusConflict is returned by TransitionStatus when the row's current status
+// no longer matches fromStatus (concurrent transition already happened).
+var ErrStatusConflict = errors.New("status conflict")
+
 // QuotationRepository is the interface for quotation data access.
 type QuotationRepository interface {
 	Create(ctx context.Context, q *model.Quotation) error
@@ -26,6 +30,7 @@ type QuotationRepository interface {
 	Delete(ctx context.Context, id uint) error
 	List(ctx context.Context, query dto.ListQuotationQuery) ([]model.Quotation, int64, error)
 	NextReferenceNo(ctx context.Context, prefix string) (string, error)
+	TransitionStatus(ctx context.Context, id uint, fromStatus string, updates map[string]any) error
 }
 
 type gormQuotationRepository struct {
@@ -215,4 +220,21 @@ func (r *gormQuotationRepository) NextReferenceNo(ctx context.Context, prefix st
 	}
 
 	return fmt.Sprintf("%s%03d", prefix, nextNum), nil
+}
+
+// TransitionStatus performs an atomic conditional update: only rows matching both
+// id and fromStatus are updated. If no row matched (status changed concurrently),
+// it returns ErrStatusConflict. It must NOT be implemented via Update() (which
+// fully replaces Items/PaymentTerms) — this only touches the given columns.
+func (r *gormQuotationRepository) TransitionStatus(ctx context.Context, id uint, fromStatus string, updates map[string]any) error {
+	result := r.db.WithContext(ctx).Model(&model.Quotation{}).
+		Where("id = ? AND status = ?", id, fromStatus).
+		Updates(updates)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrStatusConflict
+	}
+	return nil
 }

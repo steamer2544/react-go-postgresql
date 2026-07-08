@@ -79,6 +79,11 @@ type QuotationResponse struct {
 	CompanySigneeName      string                  `json:"company_signee_name"`
 	CompanySigneePosition  string                  `json:"company_signee_position"`
 	CreatedBy              uint                    `json:"created_by"`
+	ApproverID             *uint                   `json:"approver_id"`
+	ApprovedAt             *string                 `json:"approved_at"`
+	ApprovedSigneeName     *string                 `json:"approved_signee_name"`
+	ApprovedSigneePosition *string                 `json:"approved_signee_position"`
+	HasApprovedSignature   bool                    `json:"has_approved_signature"`
 }
 
 // ListQuotationQuery carries list-query parameters for the quotations list endpoint.
@@ -86,7 +91,7 @@ type ListQuotationQuery struct {
 	Page      int    `form:"page,default=1" binding:"min=1"`
 	PageSize  int    `form:"page_size,default=20" binding:"min=1,max=100"`
 	Sort      string `form:"sort"`
-	Status    string `form:"status" binding:"omitempty,oneof=draft sent approved rejected"`
+	Status    string `form:"status" binding:"omitempty,oneof=draft pending_approval approved rejected"`
 	CreatedBy uint   `form:"created_by"`
 	DateGte   string `form:"date_gte" binding:"omitempty,datetime=2006-01-02"`
 	DateLte   string `form:"date_lte" binding:"omitempty,datetime=2006-01-02"`

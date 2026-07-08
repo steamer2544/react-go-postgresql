@@ -15,7 +15,7 @@ const columnHelper = createColumnHelper();
 const STATUS_OPTIONS = [
   { value: '', label: 'All' },
   { value: 'draft', label: 'Draft' },
-  { value: 'sent', label: 'Sent' },
+  { value: 'pending_approval', label: 'Pending Approval' },
   { value: 'approved', label: 'Approved' },
   { value: 'rejected', label: 'Rejected' },
 ];

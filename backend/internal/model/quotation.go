@@ -25,6 +25,11 @@ type Quotation struct {
 	CompanySigneeName      string
 	CompanySigneePosition  string
 	CreatedBy              uint            `gorm:"column:created_by;not null"`
+	ApproverID             *uint           `gorm:"column:approver_id"`
+	ApprovedAt             *time.Time      `gorm:"column:approved_at"`
+	ApprovedSigneeName     *string         `gorm:"column:approved_signee_name"`
+	ApprovedSigneePosition *string         `gorm:"column:approved_signee_position"`
+	ApprovedSignaturePath  *string         `gorm:"column:approved_signature_path"`
 	Items                  []QuotationItem `gorm:"foreignKey:QuotationID;constraint:OnDelete:CASCADE"`
 	PaymentTerms           []PaymentTerm   `gorm:"foreignKey:QuotationID;constraint:OnDelete:CASCADE"`
 	CreatedAt              time.Time

@@ -20,6 +20,10 @@ type QuotationServicer interface {
 	DeleteQuotation(ctx context.Context, userID uint, role string, id uint) error
 	GetQuotation(ctx context.Context, id uint) (*dto.QuotationResponse, error)
 	ListQuotations(ctx context.Context, query dto.ListQuotationQuery) ([]dto.QuotationResponse, int64, error)
+	SubmitQuotation(ctx context.Context, userID uint, role string, id uint) (*dto.QuotationResponse, error)
+	ApproveQuotation(ctx context.Context, userID uint, role string, id uint) (*dto.QuotationResponse, error)
+	RejectQuotation(ctx context.Context, userID uint, role string, id uint) (*dto.QuotationResponse, error)
+	GetApprovalSignaturePath(ctx context.Context, id uint) (path string, contentType string, err error)
 }
 
 // QuotationHandler handles HTTP requests for quotations.
@@ -114,6 +118,77 @@ func (h *QuotationHandler) Delete(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// Submit handles POST /quotations/:id/submit.
+func (h *QuotationHandler) Submit(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+	role := c.GetString("role")
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		response.Fail(c, service.ErrValidation)
+		return
+	}
+	resp, err := h.svc.SubmitQuotation(c.Request.Context(), userID, role, uint(id))
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, resp, "submitted")
+}
+
+// Approve handles POST /quotations/:id/approve.
+func (h *QuotationHandler) Approve(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+	role := c.GetString("role")
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		response.Fail(c, service.ErrValidation)
+		return
+	}
+	resp, err := h.svc.ApproveQuotation(c.Request.Context(), userID, role, uint(id))
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, resp, "approved")
+}
+
+// Reject handles POST /quotations/:id/reject.
+func (h *QuotationHandler) Reject(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+	role := c.GetString("role")
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		response.Fail(c, service.ErrValidation)
+		return
+	}
+	resp, err := h.svc.RejectQuotation(c.Request.Context(), userID, role, uint(id))
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, resp, "rejected")
+}
+
+// GetApprovalSignature handles GET /quotations/:id/approval-signature.
+func (h *QuotationHandler) GetApprovalSignature(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		response.Fail(c, service.ErrValidation)
+		return
+	}
+	path, contentType, err := h.svc.GetApprovalSignaturePath(c.Request.Context(), uint(id))
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	c.Header("Content-Type", contentType)
+	c.File(path)
 }
 
 // Get handles GET /quotations/:id.
